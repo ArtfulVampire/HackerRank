@@ -7,6 +7,6 @@ using namespace std;
 
 int main()
 {
-	return triplets();
+	return substrcont();
 }
 

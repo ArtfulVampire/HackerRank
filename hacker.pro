@@ -6,7 +6,9 @@ SOURCES += \
     queries.cpp \
     triplets.cpp \
     lib.cpp \
-    main.cpp
+    main.cpp \
+    sherlockstrings.cpp \
+    substrcont.cpp
 OTHER_FILES += \
     input.txt
 HEADERS += \

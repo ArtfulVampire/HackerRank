@@ -27,29 +27,27 @@ bool areEqualFiles(const std::string & path1, const std::string & path2)
 	return areEqualFiles(QString(path1.c_str()), QString(path2.c_str()));
 }
 
-
-std::string ltrim(const std::string &str) {
+std::string ltrim(const std::string & str)
+{
 	std::string s(str);
 
-	s.erase(
-				s.begin(),
-				std::find_if(s.begin(), s.end(), not1(std::ptr_fun<int, int>(isspace)))
-				);
-
+	s.erase(std::begin(s),
+			std::find_if(std::begin(s), std::end(s),
+						 std::not1(std::ptr_fun<int, int>(std::isspace))));
 	return s;
 }
 
-std::string rtrim(const std::string &str) {
+std::string rtrim(const std::string & str)
+{
 	std::string s(str);
 
-	s.erase(
-				std::find_if(s.rbegin(), s.rend(), not1(std::ptr_fun<int, int>(isspace))).base(),
-				s.end()
-				);
-
+	s.erase(std::find_if(std::rbegin(s), std::rend(s),
+						 std::not1(std::ptr_fun<int, int>(std::isspace))).base(),
+			std::end(s));
 	return s;
 }
-std::vector<std::string> split(const std::string &str) {
+std::vector<std::string> split(const std::string & str)
+{
 	std::vector<std::string> tokens;
 
 	std::string::size_type start = 0;

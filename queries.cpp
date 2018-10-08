@@ -6,8 +6,52 @@
 
 using namespace std;
 
-vector<int> freqQuery(const vector<vector<int>> & queries) {
-	std::map<int, std::set<int>> mp{}; /// freq, nums
+vector<int> freqQuery(const std::vector<std::vector<int>> & queries)
+{
+#if 0
+	std::unordered_map<int, int> mp{}; /// num, freq
+	std::vector<int> res{};
+	for(const auto & query : queries)
+	{
+		switch(query[0])
+		{
+		case 1: /// insert query[1]
+		{
+			mp[query[1]] += 1;
+			break;
+		}
+		case 2: /// delete
+		{
+			if(mp.count(query[1]) != 0)
+			{
+				mp[query[1]] = std::max(mp[query[1]] - 1, 0);
+			}
+			break;
+		}
+		case 3: /// check
+		{
+			bool was{false};
+			for(const auto & in : mp)
+			{
+				if(in.second == query[1])
+				{
+					was = true;
+					res.push_back(1);
+					break;
+				}
+			}
+			if(!was)
+			{
+				res.push_back(0);
+			}
+			break;
+		}
+		default: { break;}
+		}
+	}
+	return res;
+#else
+	std::unordered_map<int, std::unordered_set<int>> mp{}; /// freq, nums
 	std::vector<int> res{};
 	for(const auto & query : queries)
 	{
@@ -64,13 +108,16 @@ vector<int> freqQuery(const vector<vector<int>> & queries) {
 		}
 	}
 	return res;
+#endif
+
 }
 
 int queries()
 {
-	std::ofstream fout(prePath + "queries08out.txt");
+	const std::string fileNum = "08";
 
-	std::ifstream inStr(prePath + "queries08.txt");
+	std::ofstream fout(prePath + "queries" + fileNum + "out.txt");
+	std::ifstream inStr(prePath + "queries" + fileNum + ".txt");
 
 	std::string q_temp;
 	getline(inStr, q_temp);
@@ -106,8 +153,8 @@ int queries()
 
 	fout << "\n";
 
-	std::cout << areEqualFiles(prePath + "queries08out.txt",
-							   prePath + "queries08output.txt") << std::endl;
+	std::cout << areEqualFiles(prePath + "queries" + fileNum + "out.txt",
+							   prePath + "queries" + fileNum + "output.txt") << std::endl;
 
 	return 0;
 }
