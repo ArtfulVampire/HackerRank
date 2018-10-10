@@ -6,7 +6,7 @@ using namespace std;
 // Complete the substrCount function below.
 long substrCount(int n, string s)
 {
-	int res = s.size();
+	int res = s.size(); /// one letter
 	for(int i = 0; i < s.size(); ++i)
 	{
 		char curr = s[i];
@@ -16,6 +16,7 @@ long substrCount(int n, string s)
 			if(s[j] != curr)
 			{
 				res += len * (len - 1) / 2; /// left part
+
 				int lenR{0};
 				for(int k = j + 1; k < s.size() && k <= j + len + 1; ++k)
 				{
@@ -30,7 +31,6 @@ long substrCount(int n, string s)
 						break;
 					}
 				}
-				std::cout << lenR << std::endl;
 				res += lenR; /// "mid" part
 				i = j - 1;
 				break;
@@ -49,7 +49,7 @@ long substrCount(int n, string s)
 int substrcont()
 {
 	const std::string project = "substrcont";
-	const std::string fileNum = "13";
+	const std::string fileNum = "02";
 
 	std::ofstream fout(prePath + project + fileNum + "out.txt");
 	std::ifstream inStr(prePath + project + fileNum + ".txt");
