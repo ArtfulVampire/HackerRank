@@ -9,7 +9,8 @@ SOURCES += \
     main.cpp \
     sherlockstrings.cpp \
     substrcont.cpp \
-    commonchild.cpp
+    commonchild.cpp \
+    dsu.cpp
 OTHER_FILES +=
 HEADERS += \
     header.h
