@@ -3,53 +3,75 @@
 #include <header.h>
 using namespace std;
 
-// Complete the substrCount function below.
-long substrCount(int n, string s)
+int lenOfAfter(const std::string & in, int from, char w)
 {
-	int res = s.size(); /// one letter
-	for(int i = 0; i < s.size(); ++i)
+	int res = 0;
+	while(true)
 	{
-		char curr = s[i];
-		for(int j = i + 1; j < s.size(); ++j)
-		{
-			int len = j - i;
-			if(s[j] != curr)
-			{
-				res += len * (len - 1) / 2; /// left part
-
-				int lenR{0};
-				for(int k = j + 1; k < s.size() && k <= j + len + 1; ++k)
-				{
-					if(s[k] != curr)
-					{
-						lenR = k - (j + 1);
-						break;
-					}
-					if(k == s.size() - 1)
-					{
-						lenR = k - j;
-						break;
-					}
-				}
-				res += lenR; /// "mid" part
-				i = j - 1;
-				break;
-			}
-			if(j == s.size() - 1)
-			{
-				res += len * (len + 1) / 2;
-				i = s.size();
-				break;
-			}
-		}
+		if(from < in.size() - 1 && in[from + 1] == w){ ++res; ++from; }
+		else break;
 	}
+	return res;
+}
+
+// Complete the substrCount function below.
+long substrCount(int n, const std::string & s)
+{
+	std::valarray<char> chs(' ', 3);
+	std::valarray<int> lns(3);
+	int siz = 0;
+	long res = 0;
+
+	auto func = [](int l) -> int { return l * (l - 1) / 2; };
+	auto print = [&]()
+	{
+		std::cout << chs[2] << " " << chs[1] << " " << chs[0] << std::endl;
+		std::cout << lns[2] << " " << lns[1] << " " << lns[0] << std::endl;
+		std::cout << "res = " << res << std::endl;
+		std::cout << "siz = " << siz << std::endl << std::endl;
+	};
+
+	if(siz == n) { return func(siz); }
+
+	chs[0] = s[siz];
+	lns[0] = lenOfAfter(s, siz, chs[0]) + 1;
+	siz += lns[0];
+	if(siz == n) { return func(siz + 1); } /// only one symbol
+
+
+	chs = chs.shift(-1);
+	lns = lns.shift(-1);
+	chs[0] = s[siz];
+	lns[0] = lenOfAfter(s, siz, chs[0]) + 1;
+	siz += lns[0];
+	if(siz == n) { return func(lns[0] + 1) + func(lns[1] + 1); }
+
+	/// siz < n now
+	do
+	{
+		chs = chs.shift(-1);
+		lns = lns.shift(-1);
+		chs[0] = s[siz];
+		lns[0] = lenOfAfter(s, siz, chs[0]) + 1;
+
+		res += func(lns[2]); /// leftest
+		if(lns[1] == 1 && chs[0] == chs[2]) { res += std::min(lns[0], lns[2]); } /// "mid"
+		siz += lns[0];
+
+//		print();
+	} while(siz < n);
+
+	res += func(lns[0]) + func(lns[1]); /// last "mid" and "right"
+	res += s.size(); /// single letters
+//	std::cout << res << std::endl;;
 	return res;
 }
 
 int substrcont()
 {
+//	const std::string project = "";
 	const std::string project = "substrcont";
-	const std::string fileNum = "02";
+	const std::string fileNum = "03";
 
 	std::ofstream fout(prePath + project + fileNum + "out.txt");
 	std::ifstream inStr(prePath + project + fileNum + ".txt");

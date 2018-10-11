@@ -8,10 +8,12 @@ SOURCES += \
     lib.cpp \
     main.cpp \
     sherlockstrings.cpp \
-    substrcont.cpp
-OTHER_FILES += \
-    input.txt
+    substrcont.cpp \
+    commonchild.cpp
+OTHER_FILES +=
 HEADERS += \
     header.h
 DISTFILES += \
-    input.txt
+    00output.txt \
+    00.txt \
+    00out.txt
