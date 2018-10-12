@@ -79,9 +79,9 @@ int minAlign(const string & a, int staA, int finA, const string & b, int staB, i
 }
 
 
+std::unordered_map<int, bool> mp{};
 bool findAbbr(const string & a, int staA, const string & b, int staB)
 {
-	static std::unordered_map<int, bool> mp{};
 	if(staB >= b.size())
 	{
 		return nextUpper(a, staA) == -1;
@@ -96,11 +96,12 @@ bool findAbbr(const string & a, int staA, const string & b, int staB)
 		return false;
 	}
 
-//	if(a[staA] == b[staB])
-//	{
-//		mp[(staA + 1) * (b.size() + 3) + staB + 1] = findAbbr(a, staA+1, b, staB+1);
-//		return mp.at((staA + 1) * (b.size() + 3) + staB + 1);
-//	}
+	if(a[staA] == b[staB])
+	{
+		int index = staA * b.size() + staB;
+		if(mp.count(index) == 0) { mp[index] = findAbbr(a, staA + 1, b, staB + 1); }
+		return mp.at(index);
+	}
 
 
 	int nextA = nextUpper(a, staA);
@@ -125,12 +126,8 @@ bool findAbbr(const string & a, int staA, const string & b, int staB)
 
 	for(int in : low)
 	{
-		int index = (in + 1) * (b.size() + 3) + nextB + 1;
-		if(mp.count(index) == 0)
-		{
-//			std::cout << in+1 << " " << nextB+1 << " call " << std::endl;
-			mp[index] = findAbbr(a, in + 1, b, nextB + 1);
-		}
+		int index = in * b.size() + nextB;
+		if(mp.count(index) == 0) { mp[index] = findAbbr(a, in + 1, b, nextB + 1); }
 		if(mp.at(index))
 		{
 			return true;
@@ -148,9 +145,9 @@ string abbreviation(const string & a, const string & b)
 
 int abbr()
 {
-//	std::cout << toLower('Y') << std::endl; exit(0);
+
 	const std::string project = "abbr";
-	const std::string fileNum = "12";
+	const std::string fileNum = "14";
 
 	std::ofstream fout(prePath + project + fileNum + "out.txt");
 	std::ifstream inStr(prePath + project + fileNum + ".txt");
@@ -166,6 +163,7 @@ int abbr()
 		string b;
 		getline(inStr, b);
 
+		mp.clear();
 		string result = abbreviation(a, b);
 
 		fout << result << "\n";
