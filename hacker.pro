@@ -10,7 +10,11 @@ SOURCES += \
     sherlockstrings.cpp \
     substrcont.cpp \
     commonchild.cpp \
-    dsu.cpp
+    dsu.cpp \
+    swapnodes.cpp \
+    triplesum.cpp \
+    production.cpp \
+    aabr.cpp
 OTHER_FILES +=
 HEADERS += \
     header.h

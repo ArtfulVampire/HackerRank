@@ -7,6 +7,7 @@ using namespace std;
 
 int main()
 {
-	return dsu();
+
+	return abbr();
 }
 
