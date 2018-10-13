@@ -8,6 +8,6 @@ using namespace std;
 int main()
 {
 
-	return abbr();
+	return arraysum();
 }
 

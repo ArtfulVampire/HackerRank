@@ -14,7 +14,8 @@ SOURCES += \
     swapnodes.cpp \
     triplesum.cpp \
     production.cpp \
-    aabr.cpp
+    aabr.cpp \
+    arraysum.cpp
 OTHER_FILES +=
 HEADERS += \
     header.h
