@@ -15,7 +15,10 @@ SOURCES += \
     triplesum.cpp \
     production.cpp \
     aabr.cpp \
-    arraysum.cpp
+    arraysum.cpp \
+    candies.cpp \
+    revshuf.cpp \
+    crossword.cpp
 OTHER_FILES +=
 HEADERS += \
     header.h

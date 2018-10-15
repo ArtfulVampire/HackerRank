@@ -3,6 +3,7 @@
 #include <QString>
 #include <string>
 #include <vector>
+#include <map>
 #include <list>
 #include <iostream>
 
@@ -17,6 +18,9 @@ int triplesum();
 int production();
 int abbr();
 int arraysum();
+int candies();
+int revshuf();
+int crossword();
 
 bool areEqualFiles(const QString & path1, const QString & path2);
 bool areEqualFiles(const std::string & path1, const std::string & path2);
@@ -37,9 +41,18 @@ inline std::ostream & operator<< (std::ostream & os, const std::vector<int> & in
 
 inline std::ostream & operator<< (std::ostream & os, const std::list<int> & in)
 {
-	for(auto i : in)
+	for(const auto & i : in)
 	{
 		std::cout << i << "\t";
+	}
+	return os;
+}
+
+inline std::ostream & operator<< (std::ostream & os, const std::map<char, int> & in)
+{
+	for(auto i : in)
+	{
+		std::cout << i.first << " " << i.second << "\t";
 	}
 	return os;
 }
