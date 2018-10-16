@@ -3,22 +3,10 @@ TARGET = hacker
 CONFIG += c++1y
 TEMPLATE = app
 SOURCES += \
-    queries.cpp \
-    triplets.cpp \
     lib.cpp \
     main.cpp \
-    sherlockstrings.cpp \
-    substrcont.cpp \
-    commonchild.cpp \
-    dsu.cpp \
-    swapnodes.cpp \
-    triplesum.cpp \
-    production.cpp \
-    aabr.cpp \
-    arraysum.cpp \
-    candies.cpp \
-    revshuf.cpp \
-    crossword.cpp
+    crossword.cpp \
+    balancedforest.cpp
 OTHER_FILES +=
 HEADERS += \
     header.h
