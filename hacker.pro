@@ -3,10 +3,9 @@ TARGET = hacker
 CONFIG += c++1y
 TEMPLATE = app
 SOURCES += \
-    lib.cpp \
-    main.cpp \
-    crossword.cpp \
-    balancedforest.cpp
+lib.cpp \
+main.cpp \
+balancedforest.cpp
 OTHER_FILES +=
 HEADERS += \
     header.h

@@ -4,6 +4,7 @@
 using namespace std;
 
 using adjType = std::unordered_map<int, std::unordered_set<int>>;
+using degType = std::map<int, std::unordered_set<int>, greater<int>>;
 using weightType = long;
 
 /// sum weight and a set (vector? list?) of children
@@ -22,11 +23,158 @@ std::pair<weightType, std::list<int>> weightOf(int vertex, int parent, const adj
 	return {res, outSet};
 }
 
+std::vector<weightType> routeToLeaf(const adjType & adjacency,
+									const vector<weightType> & weights,
+									int start,
+									int prev = -1)
+{
+	if((prev == -1 && adjacency.at(start).size() != 1))
+	{
+		std::cout << "cant know the direction" << std::endl;
+		return {};
+	}
+
+	std::vector<weightType> res{};
+
+	int routeLast{};	/// inclusive last
+	int routeEnd{};		/// not inclusive next-over-last
+	if(prev == -1)
+	{
+		routeLast = start;
+		routeEnd = *(std::begin(adjacency.at(start)));
+		res.push_back(weights[start - 1]); /// 1-based
+	}
+	else
+	{
+		routeLast = prev;
+		routeEnd = start;
+	}
+
+	while(adjacency.at(routeEnd).size() >= 2)
+	{
+		if(adjacency.at(routeEnd).size() > 2)
+		{
+			std::cout << "cant know the direction2" << std::endl;
+			return {};
+		}
+		res.push_back(weights[routeEnd - 1]); /// 1-based
+		auto it = std::begin(adjacency.at(routeEnd));
+		int v1 = *it; ++it; int v2 = *it;
+		int newEnd = (v1 == routeLast) ? v2 : v1;
+		routeLast = routeEnd;
+		routeEnd = newEnd;
+	}
+	/// final leaf
+	res.push_back(weights[routeEnd - 1]); /// 1-based
+	return res;
+}
+
+
+int solveStick(const adjType & adjacency, const degType & degrees, const vector<weightType> & weights)
+{
+	const weightType sumWeight = std::accumulate(std::begin(weights), std::end(weights), 0);
+
+	/// make initial path from a leaf
+	std::vector<weightType> vec = routeToLeaf(adjacency, weights, *std::begin(degrees.at(1)), -1);
+
+	/// (sumWeight + newNode) % 3 == 0
+	const int rest = (2 * sumWeight) % 3; /// == newNode % 3
+	/// it is enough that one side stick and one of the other will be exact weightEach
+	std::array<int, 2> wts{vec.front(), vec.back()};
+	std::array<int, 2> last{0, static_cast<int>(vec.size() - 1)};
+	std::array<int, 2> sign{+1, -1};
+	for(int newNode = rest; newNode <= std::floor(sumWeight / 2); newNode += 3)
+	{
+		const int weightEach = (sumWeight + newNode) / 3;
+		for(int i : {0, 1})
+		{
+			while(wts[i] < weightEach)
+			{
+				wts[i] += vec[last[i] + sign[i]];
+				last[i] += sign[i];
+			}
+		}
+		int numGood = -1;
+		if(wts[0] == wts[1]) return (wts[0]) * 3 - sumWeight;
+		else if(wts[0] == weightEach) { numGood = 0; }
+		else if(wts[1] == weightEach) { numGood = 1; }
+		else { continue; }
+
+		/// memoize not to recalculate each time ?
+		int midLast = last[numGood] + sign[numGood];
+		int wtsMid = vec[midLast];
+		while(wtsMid < weightEach)
+		{
+			wtsMid += vec[midLast + sign[numGood]];
+			midLast += sign[numGood];
+		}
+		if(wtsMid == weightEach) return newNode;
+	}
+	return -1;
+}
+
+int solveStar(const adjType & adjacency,
+			  const degType & degrees,
+			  const vector<weightType> & weights,
+			  int heaviestChild)
+{
+
+	const int center = *std::begin(std::begin(degrees)->second); /// center vertex
+
+	/// make vectors for light childs
+	std::vector<std::vector<weightType>> wtsVec(adjacency.at(center).size() - 1);
+	int branchNum = 0;
+	for(auto child : adjacency.at(center))
+	{
+		if(child == heaviestChild) { continue; }
+		wtsVec[branchNum] = routeToLeaf(adjacency, weights, child, center);
+		std::reverse(std::begin(wtsVec[branchNum]), std::end(wtsVec[branchNum])); /// start from a leaf
+		++branchNum;
+	}
+
+	std::vector<int> lastIndex(branchNum, 0);
+	std::vector<weightType> wts(branchNum, 0);
+	const weightType sumWeight = std::accumulate(std::begin(weights), std::end(weights), 0);
+	const int rest = (2 * sumWeight) % 3; /// == newNode % 3
+
+	std::vector<weightType> heavyWts = routeToLeaf(adjacency, weights, heaviestChild, center);
+	std::reverse(std::begin(heavyWts), std::end(heavyWts));
+	weightType heavy{0};
+	int lastHeavy{0};
+	for(int newNode = rest; newNode <= std::floor(sumWeight / 2); newNode += 3)
+	{
+		const int weightEach = (sumWeight + newNode) / 3;
+
+		/// heavy branch
+		while(heavy < weightEach)
+		{
+			heavy += heavyWts[lastHeavy];
+			++lastHeavy;
+			if(lastHeavy >= heavyWts.size()) { return -1; }
+		}
+		if(heavy != weightEach) { continue; }
+
+		/// light branches
+		for(int branch = 0; branch < branchNum; ++branch)
+		{
+			if(lastIndex[branch] >= wtsVec[branch].size()) { continue; }
+
+			while(wts[branch] < weightEach - newNode && lastIndex[branch] < wtsVec[branch].size())
+			{
+				wts[branch] += wtsVec[branch][lastIndex[branch]];
+				++lastIndex[branch];
+			}
+			if(wts[branch] == weightEach - newNode) return newNode;
+		}
+	}
+	return -1;
+}
+
 // Complete the balancedForest function below.
 int balancedForest(vector<weightType> weights, const vector<vector<int>> & edges)
 {
 	adjType adjacency{};
-	std::map<int, std::unordered_set<int>, greater<int>> degrees{}; /// degree, set of vertices
+	degType degrees{}; /// degree, set of vertices
 	for(auto edge : edges)
 	{
 		if(degrees.count(adjacency[edge[0]].size()) > 0)
@@ -79,7 +227,9 @@ int balancedForest(vector<weightType> weights, const vector<vector<int>> & edges
 
 	const weightType sumWeight = std::accumulate(std::begin(weights), std::end(weights), 0);
 
-	while(std::begin(degrees)->first > 2)
+
+	int starHeaviestChild{};
+	while(true) /// break condition in the end
 	{
 		const int currVertex = *(std::begin(std::begin(degrees)->second)); /// some vertex with max dgree
 		std::cout << currVertex << std::endl;
@@ -92,113 +242,79 @@ int balancedForest(vector<weightType> weights, const vector<vector<int>> & edges
 		std::sort(std::begin(wts), std::end(wts), [](const auto & in1, const auto & in2)
 		{ return std::get<0>(in1) > std::get<0>(in2); }); /// heavy first
 
-		std::cout << std::get<0>(wts[0]) << " " << std::get<0>(wts[1]) << " " << std::get<0>(wts[2]) << std::endl;
-		std::cout << std::get<1>(wts[0]) << "\n" << std::get<1>(wts[1]) << "\n" << std::get<1>(wts[2]) << std::endl;
+//		std::cout << std::get<0>(wts[0]) << " " << std::get<0>(wts[1]) << " " << std::get<0>(wts[2]) << std::endl;
+//		std::cout << std::get<1>(wts[0]) << "\n" << std::get<1>(wts[1]) << "\n" << std::get<1>(wts[2]) << std::endl;
 
 
 		int numBranchLeft = wts.size(); /// nothing to add
 
-		/// one very heavy branch
-		if(std::get<0>(wts[0]) >= std::ceil(2 * sumWeight / 3)) { numBranchLeft = 1; }
+		/// no even quite heavy branches
+		if(std::get<0>(wts[0]) < std::ceil(sumWeight / 3.)) { return -1; } /// danger
 
+		/// one very heavy branch
+		if(std::get<0>(wts[0]) >= std::ceil(2 * sumWeight / 3.))
+		{
+			numBranchLeft = 1;
+		}
 		/// two quite heavy branches
-		if(std::get<0>(wts[0]) >= std::ceil(sumWeight / 3)
-		   && std::get<0>(wts[1]) >= std::ceil(sumWeight / 3))
+		else if(std::get<0>(wts[0]) >= std::ceil(sumWeight / 3.)
+		   && std::get<0>(wts[1]) >= std::ceil(sumWeight / 3.))
 		{
 			numBranchLeft = 2;
 		}
+		/// only one quite heavy branch - only one such vertex can exist
+		else
+		{
+			starHeaviestChild = std::get<2>(wts[0]);
+		}
 
-		/// what if only one quite heavy? ///////////
 
+		/// add weights to the currVertex, fix adjacecy and degrees
 
-		   /// add weights to the currVertex, fix adjacecy and degrees
-
-		   degrees[adjacency[currVertex].size()].erase(currVertex);
+		degrees[adjacency[currVertex].size()].erase(currVertex);
 		for(int j = numBranchLeft; j < wts.size(); ++j) /// j < adjacency[currVertex].size()
-		   {
-			   weights[currVertex - 1] += std::get<0>(wts[j]); /// 1-based
-			   adjacency[currVertex].erase(std::get<2>(wts[j]));
-			   for(auto in : std::get<1>(wts[j]))
-			   {
-				   degrees[adjacency[in].size()].erase(in);
-				   adjacency.erase(in);
-			   }
-		   }
-		   degrees[numBranchLeft].insert(currVertex);
+		{
+			weights[currVertex - 1] += std::get<0>(wts[j]); /// 1-based
+			adjacency[currVertex].erase(std::get<2>(wts[j]));
+			for(auto in : std::get<1>(wts[j]))
+			{
+				degrees[adjacency[in].size()].erase(in);
+				adjacency.erase(in);
+			}
+		}
+		degrees[numBranchLeft].insert(currVertex);
 
 		/// the degrees were cahnged, maybe zeroed
 		for(auto it = std::begin(degrees); it != std::end(degrees); ++it)
 		{
 			if(it->second.empty()) { degrees.erase(it); }
 		}
+
+		/// break condition
+		auto it = std::begin(degrees);
+		if(it->first <= 2) break; /// "a stick"
+		if(it->first > 2 && it->second.size() == 1) /// "a star"
+		{
+			++it;
+			if(it->first <= 2) break;
+		}
+
 	}
 
 	/// Check:
 	printAdj();
 	printDeg();
 
-	// now we have "a stick" - a single line
+	// now we have "a stick" - a single line or "a star" with only one "quite heavy" branch
 	// it has two "leaves" with degree = 1
-	/// place
-	/// make initial paths from leaves
-	/// can be another func
-	std::vector<int> vec{};
-	vec.reserve(degrees[1].size() + degrees[2].size());
-	int leaf = *std::begin(degrees[1]);
-	if(adjacency[leaf].size() != 1) { std::cout << "wrong leaf adjacency" << std::endl; }
-	int routePrev{leaf};
-	int routeEnd{*(std::begin(adjacency[leaf]))}; /// not inclusive
-	vec.push_back(weights[leaf - 1]); /// 1-based
 
-	while(adjacency[routeEnd].size() == 2)
+	if(std::begin(degrees)->first == 2)
 	{
-		vec.push_back(weights[routeEnd - 1]); /// 1-based
-		auto it = std::begin(adjacency[routeEnd]);
-		int v1 = *it; ++it; int v2 = *it;
-		int newEnd = (v1 == routePrev) ? v2 : v1;
-		routePrev = routeEnd;
-		routeEnd = newEnd;
+		std::cout << "stick" << std::endl;
+		return solveStick(adjacency, degrees, weights);
 	}
-	/// final leaf
-	vec.push_back(weights[routeEnd - 1]); /// 1-based
-
-	std::cout << vec << std::endl;
-
-
-	/// to other func
-	/// (sumWeight + newNode) % 3 == 0
-	const int rest = (2 * sumWeight) % 3; /// == newNode % 3
-	/// it is enough that one side stick and one of the other will be exact weightEach
-	std::array<int, 2> wts{vec.front(), vec.back()};
-	std::array<int, 2> last{0, static_cast<int>(vec.size() - 1)};
-	std::array<int, 2> sign{+1, -1};
-	for(int newNode = rest; newNode <= std::floor(sumWeight / 2); newNode += 3)
-	{
-		const int weightEach = (sumWeight + newNode) / 3;
-		for(int i : {0, 1})
-		{
-			while(wts[i] < weightEach)
-			{
-				wts[i] += vec[last[i] + sign[i]];
-				last[i] += sign[i];
-			}
-		}
-		int numGood = -1;
-		if(wts[0] == wts[1]) return (wts[0]) * 3 - sumWeight;
-		else if(wts[0] == weightEach) { numGood = 0; }
-		else if(wts[1] == weightEach) { numGood = 1; }
-		else { continue; }
-
-		int midLast = last[numGood] + sign[numGood];
-		int wtsMid = vec[midLast];
-		while(wtsMid < weightEach)
-		{
-			wtsMid += vec[midLast + sign[numGood]];
-			midLast += sign[numGood];
-		}
-		if(wtsMid == weightEach) return newNode;
-	}
-	return -1;
+	std::cout << "star" << std::endl;
+	return solveStar(adjacency, degrees, weights, starHeaviestChild);
 }
 
 int balance()
