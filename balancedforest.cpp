@@ -4,317 +4,163 @@
 using namespace std;
 
 using adjType = std::unordered_map<int, std::unordered_set<int>>;
-using degType = std::map<int, std::unordered_set<int>, greater<int>>;
 using weightType = long;
 
 /// sum weight and a set (vector? list?) of children
-std::pair<weightType, std::list<int>> weightOf(int vertex, int parent, const adjType & adj, const vector<weightType> & weights)
+struct weight
 {
-	weightType res = weights[vertex - 1]; /// 1-based
-	std::list<int> outSet{vertex};
+	int vertex;
+	int parent;
+	weightType value;
+	weight(int ver, int par, weightType val) : vertex{ver}, parent{par}, value{val} {}
+};
+
+bool operator< (const weight & in1, const weight & in2)
+{
+	return in1.value < in2.value;
+}
+bool operator== (const weight & in1, const weight & in2)
+{
+	return in1.value == in2.value;
+}
+
+std::set<weight> weightsOf(int vertex, int parent, const adjType & adj, const vector<weightType> & weights)
+{
+	if(adj.at(vertex).size() == 1) /// next is another leaf
+	{
+		return { weight(vertex, parent, weights[vertex - 1]) }; /// 1-based
+	}
+
+	std::set<weight> res{};
+	weightType itsW{0};
 	for(auto child : adj.at(vertex))
 	{
 		if(child == parent) continue;
 
-		auto pew = weightOf(child, vertex, adj, weights);
-		res += pew.first;
-		outSet.splice(std::end(outSet), pew.second);
+		auto subW = weightsOf(child, vertex, adj, weights);
+		auto it = std::end(subW); --it;
+		itsW += it->value;
+		res.insert(std::begin(subW), std::end(subW));
 	}
-	return {res, outSet};
-}
-
-std::vector<weightType> routeToLeaf(const adjType & adjacency,
-									const vector<weightType> & weights,
-									int start,
-									int prev = -1)
-{
-	if((prev == -1 && adjacency.at(start).size() != 1))
-	{
-		std::cout << "cant know the direction" << std::endl;
-		return {};
-	}
-
-	std::vector<weightType> res{};
-
-	int routeLast{};	/// inclusive last
-	int routeEnd{};		/// not inclusive next-over-last
-	if(prev == -1)
-	{
-		routeLast = start;
-		routeEnd = *(std::begin(adjacency.at(start)));
-		res.push_back(weights[start - 1]); /// 1-based
-	}
-	else
-	{
-		routeLast = prev;
-		routeEnd = start;
-	}
-
-	while(adjacency.at(routeEnd).size() >= 2)
-	{
-		if(adjacency.at(routeEnd).size() > 2)
-		{
-			std::cout << "cant know the direction2" << std::endl;
-			return {};
-		}
-		res.push_back(weights[routeEnd - 1]); /// 1-based
-		auto it = std::begin(adjacency.at(routeEnd));
-		int v1 = *it; ++it; int v2 = *it;
-		int newEnd = (v1 == routeLast) ? v2 : v1;
-		routeLast = routeEnd;
-		routeEnd = newEnd;
-	}
-	/// final leaf
-	res.push_back(weights[routeEnd - 1]); /// 1-based
+	itsW += weights[vertex - 1];
+	res.emplace(weight(vertex, parent, itsW));
 	return res;
 }
 
-
-int solveStick(const adjType & adjacency, const degType & degrees, const vector<weightType> & weights)
+bool checkAncestor(int vertex, int parent, const adjType & adj, int child)
 {
-	const weightType sumWeight = std::accumulate(std::begin(weights), std::end(weights), 0);
 
-	/// make initial path from a leaf
-	std::vector<weightType> vec = routeToLeaf(adjacency, weights, *std::begin(degrees.at(1)), -1);
-
-	/// (sumWeight + newNode) % 3 == 0
-	const int rest = (2 * sumWeight) % 3; /// == newNode % 3
-	/// it is enough that one side stick and one of the other will be exact weightEach
-	std::array<int, 2> wts{vec.front(), vec.back()};
-	std::array<int, 2> last{0, static_cast<int>(vec.size() - 1)};
-	std::array<int, 2> sign{+1, -1};
-	for(int newNode = rest; newNode <= std::floor(sumWeight / 2); newNode += 3)
+	for(auto ch : adj.at(vertex))
 	{
-		const int weightEach = (sumWeight + newNode) / 3;
-		for(int i : {0, 1})
-		{
-			while(wts[i] < weightEach)
-			{
-				wts[i] += vec[last[i] + sign[i]];
-				last[i] += sign[i];
-			}
-		}
-		int numGood = -1;
-		if(wts[0] == wts[1]) return (wts[0]) * 3 - sumWeight;
-		else if(wts[0] == weightEach) { numGood = 0; }
-		else if(wts[1] == weightEach) { numGood = 1; }
-		else { continue; }
-
-		/// memoize not to recalculate each time ?
-		int midLast = last[numGood] + sign[numGood];
-		int wtsMid = vec[midLast];
-		while(wtsMid < weightEach)
-		{
-			wtsMid += vec[midLast + sign[numGood]];
-			midLast += sign[numGood];
-		}
-		if(wtsMid == weightEach) return newNode;
+		if(ch == parent) continue;
+		if(ch == child) return true;
+		if(checkAncestor(ch, vertex, adj, child)) return true;
 	}
-	return -1;
+	return false;
 }
 
-int solveStar(const adjType & adjacency,
-			  const degType & degrees,
-			  const vector<weightType> & weights,
-			  int heaviestChild)
+bool contains(const std::set<weight> & wts, weightType in)
 {
+	return std::find_if(std::begin(wts), std::end(wts),
+						[in](const weight & a){ return a.value == in; }) != std::end(wts);
+}
 
-	const int center = *std::begin(std::begin(degrees)->second); /// center vertex
+bool count(const std::set<weight> & wts, weightType in)
+{
+	return std::count_if(std::begin(wts), std::end(wts),
+						 [in](const weight & a){ return a.value == in; });
+}
 
-	/// make vectors for light childs
-	std::vector<std::vector<weightType>> wtsVec(adjacency.at(center).size() - 1);
-	int branchNum = 0;
-	for(auto child : adjacency.at(center))
-	{
-		if(child == heaviestChild) { continue; }
-		wtsVec[branchNum] = routeToLeaf(adjacency, weights, child, center);
-		std::reverse(std::begin(wtsVec[branchNum]), std::end(wtsVec[branchNum])); /// start from a leaf
-		++branchNum;
-	}
-
-	std::vector<int> lastIndex(branchNum, 0);
-	std::vector<weightType> wts(branchNum, 0);
-	const weightType sumWeight = std::accumulate(std::begin(weights), std::end(weights), 0);
-	const int rest = (2 * sumWeight) % 3; /// == newNode % 3
-
-	std::vector<weightType> heavyWts = routeToLeaf(adjacency, weights, heaviestChild, center);
-	std::reverse(std::begin(heavyWts), std::end(heavyWts));
-	weightType heavy{0};
-	int lastHeavy{0};
-	for(int newNode = rest; newNode <= std::floor(sumWeight / 2); newNode += 3)
-	{
-		const int weightEach = (sumWeight + newNode) / 3;
-
-		/// heavy branch
-		while(heavy < weightEach)
-		{
-			heavy += heavyWts[lastHeavy];
-			++lastHeavy;
-			if(lastHeavy >= heavyWts.size()) { return -1; }
-		}
-		if(heavy != weightEach) { continue; }
-
-		/// light branches
-		for(int branch = 0; branch < branchNum; ++branch)
-		{
-			if(lastIndex[branch] >= wtsVec[branch].size()) { continue; }
-
-			while(wts[branch] < weightEach - newNode && lastIndex[branch] < wtsVec[branch].size())
-			{
-				wts[branch] += wtsVec[branch][lastIndex[branch]];
-				++lastIndex[branch];
-			}
-			if(wts[branch] == weightEach - newNode) return newNode;
-		}
-	}
-	return -1;
+weight get(const std::set<weight> & wts, weightType in)
+{
+	return *std::find_if(std::begin(wts), std::end(wts),
+						[in](const weight & a){ return a.value == in; });
 }
 
 // Complete the balancedForest function below.
 int balancedForest(vector<weightType> weights, const vector<vector<int>> & edges)
 {
 	adjType adjacency{};
-	degType degrees{}; /// degree, set of vertices
 	for(auto edge : edges)
 	{
-		if(degrees.count(adjacency[edge[0]].size()) > 0)
-		{
-			degrees[adjacency[edge[0]].size()].erase(edge[0]);
-		}
-		if(degrees.count(adjacency[edge[1]].size()) > 0)
-		{
-			degrees[adjacency[edge[1]].size()].erase(edge[1]);
-		}
 		adjacency[edge[0]].emplace(edge[1]);
 		adjacency[edge[1]].emplace(edge[0]);
-		degrees[adjacency[edge[0]].size()].emplace(edge[0]);
-		degrees[adjacency[edge[1]].size()].emplace(edge[1]);
 	}
-
-	auto printAdj = [&adjacency, &weights]()
-	{
-		std::cout << "adjacency:" << std::endl;
-		for(const auto & in : adjacency)
-		{
-			std::cout << in.first << " -> ";
-			for(auto in2 : in.second)
-			{
-				std::cout << in2 << " ";
-			}
-			std::cout << "\t\t" << weights[in.first - 1];
-			std::cout << std::endl;
-		}
-		std::cout << std::endl;
-	};
-
-	auto printDeg = [&degrees]()
-	{
-		std::cout << "degrees:" << std::endl;
-		for(const auto & in : degrees)
-		{
-			std::cout << in.first << " -> ";
-			for(auto in2 : in.second)
-			{
-				std::cout << in2 << " ";
-			}
-			std::cout << std::endl;
-		}
-		std::cout << std::endl;
-	};
-
-	printAdj();
-	printDeg();
-
 	const weightType sumWeight = std::accumulate(std::begin(weights), std::end(weights), 0);
 
-
-	int starHeaviestChild{};
-	while(true) /// break condition in the end
+	int leaf{0}; /// some leaf
+	for(const auto & in : adjacency)
 	{
-		const int currVertex = *(std::begin(std::begin(degrees)->second)); /// some vertex with max dgree
-		std::cout << currVertex << std::endl;
-		std::vector<std::tuple<weightType, std::list<int>, int>> wts{}; /// weigths of children, is the third item needed?
-		for(auto child : adjacency.at(currVertex))
+		if(in.second.size() == 1)
 		{
-			auto pew = weightOf(child, currVertex, adjacency, weights);
-			wts.push_back({pew.first, pew.second, child});
+			leaf = in.first;
+			break;
 		}
-		std::sort(std::begin(wts), std::end(wts), [](const auto & in1, const auto & in2)
-		{ return std::get<0>(in1) > std::get<0>(in2); }); /// heavy first
-
-//		std::cout << std::get<0>(wts[0]) << " " << std::get<0>(wts[1]) << " " << std::get<0>(wts[2]) << std::endl;
-//		std::cout << std::get<1>(wts[0]) << "\n" << std::get<1>(wts[1]) << "\n" << std::get<1>(wts[2]) << std::endl;
-
-
-		int numBranchLeft = wts.size(); /// nothing to add
-
-		/// no even quite heavy branches
-		if(std::get<0>(wts[0]) < std::ceil(sumWeight / 3.)) { return -1; } /// danger
-
-		/// one very heavy branch
-		if(std::get<0>(wts[0]) >= std::ceil(2 * sumWeight / 3.))
-		{
-			numBranchLeft = 1;
-		}
-		/// two quite heavy branches
-		else if(std::get<0>(wts[0]) >= std::ceil(sumWeight / 3.)
-		   && std::get<0>(wts[1]) >= std::ceil(sumWeight / 3.))
-		{
-			numBranchLeft = 2;
-		}
-		/// only one quite heavy branch - only one such vertex can exist
-		else
-		{
-			starHeaviestChild = std::get<2>(wts[0]);
-		}
-
-
-		/// add weights to the currVertex, fix adjacecy and degrees
-
-		degrees[adjacency[currVertex].size()].erase(currVertex);
-		for(int j = numBranchLeft; j < wts.size(); ++j) /// j < adjacency[currVertex].size()
-		{
-			weights[currVertex - 1] += std::get<0>(wts[j]); /// 1-based
-			adjacency[currVertex].erase(std::get<2>(wts[j]));
-			for(auto in : std::get<1>(wts[j]))
-			{
-				degrees[adjacency[in].size()].erase(in);
-				adjacency.erase(in);
-			}
-		}
-		degrees[numBranchLeft].insert(currVertex);
-
-		/// the degrees were cahnged, maybe zeroed
-		for(auto it = std::begin(degrees); it != std::end(degrees); ++it)
-		{
-			if(it->second.empty()) { degrees.erase(it); }
-		}
-
-		/// break condition
-		auto it = std::begin(degrees);
-		if(it->first <= 2) break; /// "a stick"
-		if(it->first > 2 && it->second.size() == 1) /// "a star"
-		{
-			++it;
-			if(it->first <= 2) break;
-		}
-
 	}
+	int next = *std::begin(adjacency[leaf]);
+	const auto wtss = weightsOf(next, leaf, adjacency, weights);
 
-	/// Check:
-	printAdj();
-	printDeg();
 
-	// now we have "a stick" - a single line or "a star" with only one "quite heavy" branch
-	// it has two "leaves" with degree = 1
-
-	if(std::begin(degrees)->first == 2)
+	std::cout << "adjacency:" << std::endl;
+	for(const auto & in : adjacency)
 	{
-		std::cout << "stick" << std::endl;
-		return solveStick(adjacency, degrees, weights);
+		std::cout << in.first << " -> ";
+		for(auto in2 : in.second)
+		{
+			std::cout << in2 << " ";
+		}
+		std::cout << std::endl;
 	}
-	std::cout << "star" << std::endl;
-	return solveStar(adjacency, degrees, weights, starHeaviestChild);
+	std::cout << std::endl;
+
+	std::cout << "leaf = " << leaf << std::endl;
+	std::cout << "next = " << next << std::endl;
+
+	std::cout << "weights:" << std::endl;
+	for(const auto & in : wtss)
+	{
+		std::cout << in.value << " ";
+	}
+	std::cout << std::endl;
+
+
+	const int rem = (2 * sumWeight) % 3;
+	std::cout << "sumWeight = " << sumWeight << std::endl;
+	std::cout << "rem = " << rem << std::endl;
+	for(int newVal = rem; newVal <= sumWeight / 2; newVal += 3)
+	{
+		const int each = (sumWeight + newVal) / 3;
+		std::cout << "each = " << each << std::endl;
+
+		if(count(wtss, each) == 2) return newVal; /// two different each
+
+		if(contains(wtss, each)
+		   && contains(wtss, each + each - newVal)
+		   && checkAncestor(get(wtss, each + each - newVal).vertex,
+							get(wtss, each + each - newVal).parent,
+							adjacency,
+							get(wtss, each).vertex)
+		   ) return newVal;
+		/// add for_each
+		if(contains(wtss, each - newVal)
+		   && contains(wtss, each + each - newVal)
+		   && checkAncestor(get(wtss, each + each - newVal).vertex,
+							get(wtss, each + each - newVal).parent,
+							adjacency,
+							get(wtss, each - newVal).vertex)
+		   ) return newVal;
+
+		/// add for_each
+		if(contains(wtss, each)
+		   && contains(wtss, each - newVal)
+		   && !checkAncestor(get(wtss, each).vertex,
+							 get(wtss, each).parent,
+							 adjacency,
+							 get(wtss, each - newVal).vertex)
+		   ) return newVal;
+	}
+	return -1;
+
 }
 
 int balance()
