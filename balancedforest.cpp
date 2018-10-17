@@ -6,44 +6,62 @@ using namespace std;
 using adjType = std::unordered_map<int, std::unordered_set<int>>;
 using weightType = long;
 
-/// sum weight and a set (vector? list?) of children
 struct weight
 {
 	int vertex;
 	int parent;
 	weightType value;
+	weightType getValue() const { return value; }
 	weight(int ver, int par, weightType val) : vertex{ver}, parent{par}, value{val} {}
+	weight()=default;
+	weight(const weight & other)=default;
+	weight(weight &&other)=default;
+	weight & operator=(const weight&)=default;
+	weight & operator=(weight&&)=default;
+
 };
 
 bool operator< (const weight & in1, const weight & in2)
 {
-	return in1.value < in2.value;
+	return in1.getValue() < in2.getValue();
 }
+bool operator< (const weight & in1, const weightType & in2)
+{
+	return in1.getValue() < in2;
+}
+bool operator< (const weightType & in1, const weight & in2)
+{
+	return in1 < in2.getValue();
+}
+
 bool operator== (const weight & in1, const weight & in2)
 {
 	return in1.value == in2.value;
 }
 
-std::set<weight> weightsOf(int vertex, int parent, const adjType & adj, const vector<weightType> & weights)
+
+using weightContainer = std::vector<weight>;
+weightContainer weightsOf(int vertex, int parent, const adjType & adj, const vector<weightType> & weights)
 {
 	if(adj.at(vertex).size() == 1) /// next is another leaf
 	{
 		return { weight(vertex, parent, weights[vertex - 1]) }; /// 1-based
 	}
 
-	std::set<weight> res{};
+	weightContainer res{};
 	weightType itsW{0};
 	for(auto child : adj.at(vertex))
 	{
 		if(child == parent) continue;
 
 		auto subW = weightsOf(child, vertex, adj, weights);
-		auto it = std::end(subW); --it;
-		itsW += it->value;
-		res.insert(std::begin(subW), std::end(subW));
+		itsW += subW.back().value;
+		res.insert(std::begin(res), std::begin(subW), std::end(subW)); /// vector
+//		res.splice(std::end(res), subW); /// list
+//		res.insert(std::begin(subW), std::end(sub)W); /// set
 	}
-	itsW += weights[vertex - 1];
-	res.emplace(weight(vertex, parent, itsW));
+	itsW += weights[vertex - 1]; /// 1-based
+	res.push_back(weight(vertex, parent, itsW));
 	return res;
 }
 
@@ -59,22 +77,18 @@ bool checkAncestor(int vertex, int parent, const adjType & adj, int child)
 	return false;
 }
 
-bool contains(const std::set<weight> & wts, weightType in)
+bool count(const weightContainer & wts, weightType in)
 {
-	return std::find_if(std::begin(wts), std::end(wts),
-						[in](const weight & a){ return a.value == in; }) != std::end(wts);
+	auto low = std::lower_bound(std::begin(wts), std::end(wts), in);
+	auto upp = std::upper_bound(std::begin(wts), std::end(wts), in);
+	return std::distance(low, upp);
 }
 
-bool count(const std::set<weight> & wts, weightType in)
+weightContainer get(const weightContainer & wts, weightType in)
 {
-	return std::count_if(std::begin(wts), std::end(wts),
-						 [in](const weight & a){ return a.value == in; });
-}
-
-weight get(const std::set<weight> & wts, weightType in)
-{
-	return *std::find_if(std::begin(wts), std::end(wts),
-						[in](const weight & a){ return a.value == in; });
+	auto low = std::lower_bound(std::begin(wts), std::end(wts), in);
+	auto upp = std::upper_bound(std::begin(wts), std::end(wts), in);
+	return weightContainer(low, upp);
 }
 
 // Complete the balancedForest function below.
@@ -98,75 +112,114 @@ int balancedForest(vector<weightType> weights, const vector<vector<int>> & edges
 		}
 	}
 	int next = *std::begin(adjacency[leaf]);
-	const auto wtss = weightsOf(next, leaf, adjacency, weights);
+	auto wtss = weightsOf(next, leaf, adjacency, weights);
+	wtss.push_back(weight(leaf, -1, sumWeight));
+	std::sort(std::begin(wtss), std::end(wtss));
+	if(sumWeight % 2 == 0 && count(wtss, sumWeight / 2) > 0) return sumWeight / 2;
 
 
-	std::cout << "adjacency:" << std::endl;
-	for(const auto & in : adjacency)
-	{
-		std::cout << in.first << " -> ";
-		for(auto in2 : in.second)
-		{
-			std::cout << in2 << " ";
-		}
-		std::cout << std::endl;
-	}
-	std::cout << std::endl;
+//	std::cout << "adjacency:" << std::endl;
+//	for(const auto & in : adjacency)
+//	{
+//		std::cout << in.first << " -> ";
+//		for(auto in2 : in.second)
+//		{
+//			std::cout << in2 << " ";
+//		}
+//		std::cout << std::endl;
+//	}
+//	std::cout << std::endl;
 
-	std::cout << "leaf = " << leaf << std::endl;
-	std::cout << "next = " << next << std::endl;
+//	std::cout << "leaf = " << leaf << std::endl;
+//	std::cout << "next = " << next << std::endl;
 
-	std::cout << "weights:" << std::endl;
-	for(const auto & in : wtss)
-	{
-		std::cout << in.value << " ";
-	}
-	std::cout << std::endl;
+//	std::cout << "weights:" << std::endl;
+//	for(const auto & in : wtss)
+//	{
+//		std::cout << in.value << " ";
+//	}
+//	std::cout << std::endl;
 
 
 	const int rem = (2 * sumWeight) % 3;
-	std::cout << "sumWeight = " << sumWeight << std::endl;
-	std::cout << "rem = " << rem << std::endl;
+//	std::cout << "sumWeight = " << sumWeight << std::endl;
+//	std::cout << "rem = " << rem << std::endl;
 	for(int newVal = rem; newVal <= sumWeight / 2; newVal += 3)
 	{
 		const int each = (sumWeight + newVal) / 3;
-		std::cout << "each = " << each << std::endl;
+//		std::cout << "newVal = " << newVal << "\t" << "each = " << each << std::endl;
 
 		if(count(wtss, each) == 2) return newVal; /// two different each
 
-		if(contains(wtss, each)
-		   && contains(wtss, each + each - newVal)
-		   && checkAncestor(get(wtss, each + each - newVal).vertex,
-							get(wtss, each + each - newVal).parent,
-							adjacency,
-							get(wtss, each).vertex)
-		   ) return newVal;
-		/// add for_each
-		if(contains(wtss, each - newVal)
-		   && contains(wtss, each + each - newVal)
-		   && checkAncestor(get(wtss, each + each - newVal).vertex,
-							get(wtss, each + each - newVal).parent,
-							adjacency,
-							get(wtss, each - newVal).vertex)
-		   ) return newVal;
+		/// only one "each"
+		/// only one "2each - newVal"
+		{
+			auto high = get(wtss, each + each - newVal);
+			auto low = get(wtss, each);
+			for(const auto & in1 : high)
+			{
+				for(const auto & in2 : low)
+				{
+					if(checkAncestor(in1.vertex,
+									 in1.parent,
+									 adjacency,
+									 in2.vertex)) return newVal;
+				}
+			}
+		}
 
-		/// add for_each
-		if(contains(wtss, each)
-		   && contains(wtss, each - newVal)
-		   && !checkAncestor(get(wtss, each).vertex,
-							 get(wtss, each).parent,
-							 adjacency,
-							 get(wtss, each - newVal).vertex)
-		   ) return newVal;
+		{
+			auto high = get(wtss, each + each - newVal);
+			auto low = get(wtss, each - newVal);
+			for(const auto & in1 : high)
+			{
+				for(const auto & in2 : low)
+				{
+					if(checkAncestor(in1.vertex,
+									 in1.parent,
+									 adjacency,
+									 in2.vertex)) return newVal;
+				}
+			}
+		}
+		{
+			auto high = get(wtss, each + each);
+			auto low = get(wtss, each);
+			for(const auto & in1 : high)
+			{
+				for(const auto & in2 : low)
+				{
+					if(checkAncestor(in1.vertex,
+									 in1.parent,
+									 adjacency,
+									 in2.vertex)) return newVal;
+				}
+			}
+		}
+
+		{
+			auto high = get(wtss, each - newVal);
+			auto low = get(wtss, each);
+			for(const auto & in1 : high)
+			{
+				for(const auto & in2 : low)
+				{
+					if(!checkAncestor(in1.vertex,
+									 in1.parent,
+									 adjacency,
+									 in2.vertex)) return newVal;
+				}
+			}
+		}
+
 	}
 	return -1;
-
 }
 
 int balance()
 {
-	const std::string project = "";
-	const std::string fileNum = "00";
+	const std::string project = "balanced";
+	const std::string fileNum = "02";
 
 	std::ofstream fout(prePath + project + fileNum + "out.txt");
 	std::ifstream inStr(prePath + project + fileNum + ".txt");
