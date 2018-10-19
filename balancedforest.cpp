@@ -3,7 +3,7 @@
 
 using namespace std;
 
-using adjType = std::unordered_map<int, std::unordered_set<int>>;
+using adjType = std::unordered_map<int, std::list<int>>; /// std::unordered_set instead of std::list?
 using weightType = long;
 
 struct weight
@@ -39,8 +39,7 @@ bool operator== (const weight & in1, const weight & in2)
 	return in1.value == in2.value;
 }
 
-
-using weightContainer = std::vector<weight>;
+using weightContainer = std::list<weight>;
 weightContainer weightsOf(int vertex, int parent, const adjType & adj, const vector<weightType> & weights)
 {
 	if(adj.at(vertex).size() == 1) /// next is another leaf
@@ -53,11 +52,10 @@ weightContainer weightsOf(int vertex, int parent, const adjType & adj, const vec
 	for(auto child : adj.at(vertex))
 	{
 		if(child == parent) continue;
-
 		auto subW = weightsOf(child, vertex, adj, weights);
 		itsW += subW.back().value;
-		res.insert(std::begin(res), std::begin(subW), std::end(subW)); /// vector
-//		res.splice(std::end(res), subW); /// list
+//		res.insert(std::begin(res), std::begin(subW), std::end(subW)); /// vector
+		res.splice(std::end(res), subW); /// list
 //		res.insert(std::begin(subW), std::end(sub)W); /// set
 	}
 	itsW += weights[vertex - 1]; /// 1-based
@@ -67,7 +65,6 @@ weightContainer weightsOf(int vertex, int parent, const adjType & adj, const vec
 
 bool checkAncestor(int vertex, int parent, const adjType & adj, int child)
 {
-
 	for(auto ch : adj.at(vertex))
 	{
 		if(ch == parent) continue;
@@ -77,32 +74,23 @@ bool checkAncestor(int vertex, int parent, const adjType & adj, int child)
 	return false;
 }
 
-bool count(const weightContainer & wts, weightType in)
+bool checkAncestor(weight par, const adjType & adj, weight child)
 {
-	auto low = std::lower_bound(std::begin(wts), std::end(wts), in);
-	auto upp = std::upper_bound(std::begin(wts), std::end(wts), in);
-	return std::distance(low, upp);
+	return checkAncestor(par.vertex, par.parent, adj, child.vertex);
 }
 
-weightContainer get(const weightContainer & wts, weightType in)
-{
-	auto low = std::lower_bound(std::begin(wts), std::end(wts), in);
-	auto upp = std::upper_bound(std::begin(wts), std::end(wts), in);
-	return weightContainer(low, upp);
-}
-
-// Complete the balancedForest function below.
-int balancedForest(vector<weightType> weights, const vector<vector<int>> & edges)
+weightType balancedForest(vector<weightType> weights, const vector<vector<int>> & edges)
 {
 	adjType adjacency{};
 	for(auto edge : edges)
 	{
-		adjacency[edge[0]].emplace(edge[1]);
-		adjacency[edge[1]].emplace(edge[0]);
+		adjacency[edge[0]].push_back(edge[1]);
+		adjacency[edge[1]].push_back(edge[0]);
 	}
-	const weightType sumWeight = std::accumulate(std::begin(weights), std::end(weights), 0);
 
-	int leaf{0}; /// some leaf
+	const weightType sumWeight = std::accumulate(std::begin(weights), std::end(weights), 0l);
+
+	int leaf{0}; /// some leaf number
 	for(const auto & in : adjacency)
 	{
 		if(in.second.size() == 1)
@@ -111,114 +99,100 @@ int balancedForest(vector<weightType> weights, const vector<vector<int>> & edges
 			break;
 		}
 	}
-	int next = *std::begin(adjacency[leaf]);
+	int next = *std::begin(adjacency[leaf]);				/// next node number
 	auto wtss = weightsOf(next, leaf, adjacency, weights);
 	wtss.push_back(weight(leaf, -1, sumWeight));
-	std::sort(std::begin(wtss), std::end(wtss));
-	if(sumWeight % 2 == 0 && count(wtss, sumWeight / 2) > 0) return sumWeight / 2;
-
-
-//	std::cout << "adjacency:" << std::endl;
-//	for(const auto & in : adjacency)
-//	{
-//		std::cout << in.first << " -> ";
-//		for(auto in2 : in.second)
-//		{
-//			std::cout << in2 << " ";
-//		}
-//		std::cout << std::endl;
-//	}
-//	std::cout << std::endl;
 
 //	std::cout << "leaf = " << leaf << std::endl;
-//	std::cout << "next = " << next << std::endl;
-
-//	std::cout << "weights:" << std::endl;
-//	for(const auto & in : wtss)
+//	std::cout << "weights" << std::endl;
+//	for(auto in : wtss)
 //	{
 //		std::cout << in.value << " ";
 //	}
 //	std::cout << std::endl;
 
 
-	const int rem = (2 * sumWeight) % 3;
-//	std::cout << "sumWeight = " << sumWeight << std::endl;
-//	std::cout << "rem = " << rem << std::endl;
-	for(int newVal = rem; newVal <= sumWeight / 2; newVal += 3)
+	std::multimap<weightType, weight> WTS{};
+	for(const auto & in : wtss)
 	{
-		const int each = (sumWeight + newVal) / 3;
-//		std::cout << "newVal = " << newVal << "\t" << "each = " << each << std::endl;
+		WTS.emplace(in.value, in);
+	}
 
-		if(count(wtss, each) == 2) return newVal; /// two different each
+	const weightType rem = (2 * sumWeight) % 3;
+	const weightType minEach = (sumWeight + rem) / 3;
+	auto highIter = WTS.lower_bound(minEach);
+	auto it = highIter; ++it;
+	auto lowIter = WTS.lower_bound(minEach - rem);
+	while (true)
+	{
+		const weightType each = highIter->first;
+		const weightType addFromHigh = 3 * each - sumWeight;
 
-		/// only one "each"
-		/// only one "2each - newVal"
+		weightType eachMinVal{0};
+		weightType addFromLow{0};
+		++lowIter;
+		do
 		{
-			auto high = get(wtss, each + each - newVal);
-			auto low = get(wtss, each);
-			for(const auto & in1 : high)
-			{
-				for(const auto & in2 : low)
-				{
-					if(checkAncestor(in1.vertex,
-									 in1.parent,
-									 adjacency,
-									 in2.vertex)) return newVal;
-				}
-			}
-		}
+			--lowIter;
+			eachMinVal = lowIter->first;
+			weightType new2 = sumWeight - 3 * eachMinVal;
+			if(new2 % 2 == 0) { addFromLow = new2 / 2; }
+		} while(addFromLow == 0 && lowIter != std::begin(WTS));
 
+		if(addFromHigh == addFromLow && addFromHigh != 0) return addFromHigh;
+		else if(addFromHigh < addFromLow)
 		{
-			auto high = get(wtss, each + each - newVal);
-			auto low = get(wtss, each - newVal);
-			for(const auto & in1 : high)
-			{
-				for(const auto & in2 : low)
-				{
-					if(checkAncestor(in1.vertex,
-									 in1.parent,
-									 adjacency,
-									 in2.vertex)) return newVal;
-				}
-			}
-		}
-		{
-			auto high = get(wtss, each + each);
-			auto low = get(wtss, each);
-			for(const auto & in1 : high)
-			{
-				for(const auto & in2 : low)
-				{
-					if(checkAncestor(in1.vertex,
-									 in1.parent,
-									 adjacency,
-									 in2.vertex)) return newVal;
-				}
-			}
-		}
+			/// test second each
+			if(it->first == each) return 3 * each - sumWeight;
 
-		{
-			auto high = get(wtss, each - newVal);
-			auto low = get(wtss, each);
-			for(const auto & in1 : high)
+			/// test 2 * each
+			auto a = WTS.lower_bound(2 * each);
+			if(a->first == 2 * each && checkAncestor(a->second, adjacency, highIter->second))
 			{
-				for(const auto & in2 : low)
-				{
-					if(!checkAncestor(in1.vertex,
-									 in1.parent,
-									 adjacency,
-									 in2.vertex)) return newVal;
-				}
+				return  3 * each - sumWeight;
 			}
-		}
 
+			/// test 2 * each - newNode
+			auto b = WTS.lower_bound(sumWeight - each);
+			if(b->first == sumWeight - each && checkAncestor(b->second, adjacency, highIter->second))
+			{
+				return  3 * each - sumWeight;
+			}
+
+			/// test nonchild each - newNode
+			auto c = WTS.lower_bound(sumWeight - 2 * each);
+			if(b->first == sumWeight - 2 * each && !checkAncestor(highIter->second, adjacency, c->second))
+			{
+				return  3 * each - sumWeight;
+			}
+			if(highIter->first > sumWeight / 2) break;
+			++highIter;
+			++it;
+		}
+		else /// each - newVal as a candidate
+		{
+			/// test 2 * each - newVal
+			auto b = WTS.lower_bound(sumWeight - each);
+			if(b->first == sumWeight - each && checkAncestor(b->second, adjacency, lowIter->second))
+			{
+				return  3 * each - sumWeight;
+			}
+			/// test non parent each
+			auto c = WTS.lower_bound(each);
+			if(b->first == each && !checkAncestor(c->second, adjacency, lowIter->second))
+			{
+				return  3 * each - sumWeight;
+			}
+			if(lowIter == std::begin(WTS)) break;
+			--lowIter;
+		}
 	}
 	return -1;
 }
 
 int balance()
 {
-	const std::string project = "balanced";
+	const std::string project = "balanced"; //balanced
 	const std::string fileNum = "02";
 
 	std::ofstream fout(prePath + project + fileNum + "out.txt");
@@ -257,7 +231,8 @@ int balance()
 			inStr.ignore(numeric_limits<streamsize>::max(), '\n');
 		}
 
-		int result = balancedForest(c, edges);
+		weightType result = balancedForest(c, edges);
+		std::cout << result << std::endl;
 
 		fout << result << "\n";
 	}
