@@ -29,6 +29,7 @@ int bfs();
 int brackets();
 int merge();
 int maxxor();
+int subarr();
 
 bool areEqualFiles(const QString & path1, const QString & path2);
 bool areEqualFiles(const std::string & path1, const std::string & path2);

@@ -9,15 +9,21 @@ bool areEqualFiles(const QString & path1, const QString & path2)
 	QFile fil2(path2); fil2.open(QIODevice::ReadOnly);
 
 	int pos = 0;
-	for(int i = 0; i < fil1.size(); ++i)
+	int lin = 0;
+	while(!fil1.atEnd() || !fil2.atEnd())
 	{
-		if(fil1.read(1) != fil2.read(1))
+		++lin;
+		QString a = fil1.readLine();
+		QString b = fil2.readLine();
+		if(a == b) pos += a.size();
+		else
 		{
-			std::cout << "equalFiles(false):"
-					  << "\t" << "pos(bytes) = " << pos << std::endl;
+			std::cout
+					<< "lin = " << lin << "\t"
+//					<< "pos ~= " << pos
+					<< std::endl;
 			return false;
 		}
-		++pos;
 	}
 	return true;
 }

@@ -6,9 +6,8 @@ SOURCES += \
 lib.cpp \
 main.cpp \
 balancedforest.cpp \
-    nearcolor.cpp \
-    bfs.cpp \
-    xor.cpp
+nearcolor.cpp \
+bfs.cpp
 OTHER_FILES +=
 HEADERS += \
     header.h
