@@ -81,6 +81,9 @@ bool checkAncestor(weight par, const adjType & adj, weight child)
 
 weightType balancedForest(vector<weightType> weights, const vector<vector<int>> & edges)
 {
+	if(weights.size() == 1) return -1;
+	if(weights.size() == 2 && weights[0] != weights[1]) return -1;
+
 	adjType adjacency{};
 	for(auto edge : edges)
 	{
@@ -120,71 +123,189 @@ weightType balancedForest(vector<weightType> weights, const vector<vector<int>> 
 
 	const weightType rem = (2 * sumWeight) % 3;
 	const weightType minEach = (sumWeight + rem) / 3;
-	auto highIter = WTS.lower_bound(minEach);
-	auto it = highIter; ++it;
-	auto lowIter = WTS.lower_bound(minEach - rem);
+	auto high = WTS.lower_bound(minEach);
+	auto low = WTS.upper_bound(minEach - rem);
+
+	if(low != std::begin(WTS))
+	{
+		--low;
+	}
+
+	while(low->first == high->first)
+	{
+		++high;
+	}
+
+	std::vector<decltype(low)> itsLow{};
+	std::vector<decltype(low)> itsHigh{};
+	bool badLow{false};
+	bool badHigh{false};
 	while (true)
 	{
-		const weightType each = highIter->first;
-		const weightType addFromHigh = 3 * each - sumWeight;
+		if(badLow && badHigh) return -1;
 
-		weightType eachMinVal{0};
-		weightType addFromLow{0};
-		++lowIter;
-		do
+		/// low = each - newVal
+		weightType newNodeLow{};
+		weightType eachLow{-1};
+		if(!badLow)
 		{
-			--lowIter;
-			eachMinVal = lowIter->first;
-			weightType new2 = sumWeight - 3 * eachMinVal;
-			if(new2 % 2 == 0) { addFromLow = new2 / 2; }
-		} while(addFromLow == 0 && lowIter != std::begin(WTS));
+			itsLow = {low};
 
-		if(addFromHigh == addFromLow && addFromHigh != 0) return addFromHigh;
-		else if(addFromHigh < addFromLow)
-		{
-			/// test second each
-			if(it->first == each) return 3 * each - sumWeight;
-
-			/// test 2 * each
-			auto a = WTS.lower_bound(2 * each);
-			if(a->first == 2 * each && checkAncestor(a->second, adjacency, highIter->second))
+			auto itLow = low;
+			if(itLow != std::begin(WTS))
 			{
-				return  3 * each - sumWeight;
+				--itLow;
 			}
-
-			/// test 2 * each - newNode
-			auto b = WTS.lower_bound(sumWeight - each);
-			if(b->first == sumWeight - each && checkAncestor(b->second, adjacency, highIter->second))
+			while(itLow->first == low->first)
 			{
-				return  3 * each - sumWeight;
+				itsLow.push_back(itLow);
+				if(itLow != std::begin(WTS))
+				{
+					--itLow;
+				}
+				else
+				{
+					break;
+				}
 			}
-
-			/// test nonchild each - newNode
-			auto c = WTS.lower_bound(sumWeight - 2 * each);
-			if(b->first == sumWeight - 2 * each && !checkAncestor(highIter->second, adjacency, c->second))
-			{
-				return  3 * each - sumWeight;
-			}
-			if(highIter->first > sumWeight / 2) break;
-			++highIter;
-			++it;
+			newNodeLow = (3 * low->first - sumWeight - rem) / (-2);
+			eachLow = low->first + newNodeLow;
 		}
-		else /// each - newVal as a candidate
+
+		/// high = each
+		weightType newNodeHigh{};
+		weightType eachHigh{-1};
+		if(!badHigh)
 		{
-			/// test 2 * each - newVal
-			auto b = WTS.lower_bound(sumWeight - each);
-			if(b->first == sumWeight - each && checkAncestor(b->second, adjacency, lowIter->second))
+			itsHigh = {high};
+			auto itHigh = high; ++itHigh;
+			while(itHigh->first == high->first) { itsHigh.push_back(itHigh); ++itHigh; }
+			newNodeHigh = (3 * high->first - sumWeight - rem);
+			eachHigh = high->first;
+		}
+
+		if(eachHigh == eachLow)
+		{
+			for(auto l : itsLow)
 			{
-				return  3 * each - sumWeight;
+				for(auto h : itsHigh)
+				{
+					if(!checkAncestor(h->second, adjacency, l->second))
+					{
+//						std::cout
+//								<< "each-val & each:" << "\n"
+//								<< "sumWeight = " << sumWeight << "\n"
+//								<< "rem = " << rem << "\n"
+//								<< "val = " << newNodeHigh << "\n"
+//								<< "each = " << eachHigh << "\n"
+//								<< "lowItem = "  << l->first << "\n"
+//								<< "highItem = " << h->first << "\n"
+//								   ;
+						return newNodeHigh;
+					}
+				}
 			}
-			/// test non parent each
-			auto c = WTS.lower_bound(each);
-			if(b->first == each && !checkAncestor(c->second, adjacency, lowIter->second))
+		}
+
+		if( !badHigh && ( (!badLow && (eachHigh < eachLow)) || badLow ) )
+		{
+			/// each & 2*each
+			auto each2 = WTS.equal_range(2 * eachHigh);
+			for(auto b = each2.first; b != each2.second; ++b)
 			{
-				return  3 * each - sumWeight;
+				for(auto a : itsHigh)
+				{
+					if(checkAncestor(b->second, adjacency, a->second))
+					{
+//						std::cout << "each & 2each: " << "\n"
+//								  << "sumWeight = " << sumWeight << "\n"
+//								  << "rem = " << rem << "\n"
+//								  << "val = " << newNodeHigh << "\n"
+//								  << "each = " << eachHigh << "\n"
+//								  << "lowItem = "  << a->first << "\n"
+//								  << "highItem = " << b->first << "\n"
+//									 ;
+						return newNodeHigh;
+					}
+				}
 			}
-			if(lowIter == std::begin(WTS)) break;
-			--lowIter;
+
+			/// each & 2*each-val
+			auto each2minusVal = WTS.equal_range(2 * eachHigh - newNodeHigh);
+			for(auto b = each2minusVal.first; b != each2minusVal.second; ++b)
+			{
+				for(auto a : itsHigh)
+				{
+					if(checkAncestor(b->second, adjacency, a->second))
+					{
+//						std::cout << "each & 2each-val: " << "\n"
+//								  << "sumWeight = " << sumWeight << "\n"
+//								  << "rem = " << rem << "\n"
+//								  << "val = " << newNodeHigh << "\n"
+//								  << "each = " << eachHigh << "\n"
+//								  << "lowItem = "  << a->first << "\n"
+//								  << "highItem = " << b->first << "\n"
+//									 ;
+						return newNodeHigh;
+					}
+				}
+			}
+			high = itsHigh.back();
+			if(high->first > sumWeight / 2) badHigh = true;
+			++high;
+		}
+
+		if( !badLow && ( (!badHigh && (eachLow < eachHigh)) || badHigh ) )
+		{
+
+//			/// each-val & non-parenting each
+//			auto eachList = WTS.equal_range(eachLow);
+//			for(auto b = eachList.first; b != eachList.second; ++b)
+//			{
+//				for(auto a : itsLow)
+//				{
+//					if(!checkAncestor(b->second, adjacency, a->second))
+//					{
+//						std::cout << "each-val & each: " << "\n"
+//								  << "sumWeight = " << sumWeight << "\n"
+//								  << "rem = " << rem << "\n"
+//								  << "val = " << newNodeLow << "\n"
+//								  << "each = " << eachLow << "\n"
+//								  << "lowItem = "  << a->first << "\n"
+//								  << "highItem = " << b->first << "\n"
+//									 ;
+//						return newNodeLow;
+//					}
+//				}
+//			}
+
+			/// each-val &  2*each-val
+			auto each2minusVal = WTS.equal_range(2 * eachLow - newNodeLow);
+			for(auto b = each2minusVal.first; b != each2minusVal.second; ++b)
+			{
+				for(auto a : itsLow)
+				{
+					if(checkAncestor(b->second, adjacency, a->second))
+					{
+//						std::cout << "each-val & 2each-val: " << "\n"
+//								  << "sumWeight = " << sumWeight << "\n"
+//								  << "rem = " << rem << "\n"
+//								  << "val = " << newNodeLow << "\n"
+//								  << "each = " << eachLow << "\n"
+//								  << "lowItem = "  << a->first << "\n"
+//								  << "highItem = " << b->first << "\n"
+//									 ;
+						return newNodeLow;
+					}
+				}
+			}
+			low = itsLow.back();
+			if(low == std::begin(WTS))
+			{
+				badLow = true;
+			}
+			/// else? - dont matter
+			--low;
 		}
 	}
 	return -1;
@@ -193,7 +314,7 @@ weightType balancedForest(vector<weightType> weights, const vector<vector<int>> 
 int balance()
 {
 	const std::string project = "balanced"; //balanced
-	const std::string fileNum = "02";
+	const std::string fileNum = "05_1";
 
 	std::ofstream fout(prePath + project + fileNum + "out.txt");
 	std::ifstream inStr(prePath + project + fileNum + ".txt");
@@ -202,10 +323,17 @@ int balance()
 	inStr >> q;
 	inStr.ignore(numeric_limits<streamsize>::max(), '\n');
 
-	for (int q_itr = 0; q_itr < q; q_itr++) {
+	for (int q_itr = 0; q_itr < q; q_itr++)
+	{
+
+		std::ofstream sub(prePath + project + fileNum + "_" + QString::number(q_itr).toStdString() + ".txt");
+
 		int n;
 		inStr >> n;
 		inStr.ignore(numeric_limits<streamsize>::max(), '\n');
+		sub << 1 << "\n";
+		sub << n << "\n";
+
 
 		string c_temp_temp;
 		getline(inStr, c_temp_temp);
@@ -216,6 +344,7 @@ int balance()
 
 		for (int i = 0; i < n; i++) {
 			int c_item = stoi(c_temp[i]);
+			sub << c_item << " ";
 
 			c[i] = c_item;
 		}
@@ -226,13 +355,16 @@ int balance()
 
 			for (int j = 0; j < 2; j++) {
 				inStr >> edges[i][j];
+				sub << edges[i][j] << " ";
 			}
+			sub << "\n";
 
 			inStr.ignore(numeric_limits<streamsize>::max(), '\n');
 		}
+		sub.close();
 
 		weightType result = balancedForest(c, edges);
-		std::cout << result << std::endl;
+//		std::cout << result << std::endl << std::endl;;
 
 		fout << result << "\n";
 	}

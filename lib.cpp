@@ -63,3 +63,8 @@ std::vector<std::string> split(const std::string & str)
 
 	return tokens;
 }
+
+std::vector<std::string> split_string(const std::string & str)
+{
+	return split(str);
+}

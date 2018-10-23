@@ -5,7 +5,10 @@ TEMPLATE = app
 SOURCES += \
 lib.cpp \
 main.cpp \
-balancedforest.cpp
+balancedforest.cpp \
+    nearcolor.cpp \
+    bfs.cpp \
+    xor.cpp
 OTHER_FILES +=
 HEADERS += \
     header.h
